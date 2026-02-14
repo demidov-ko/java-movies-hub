@@ -9,8 +9,8 @@ import ru.practicum.moviehub.store.MoviesStore;
 import java.io.IOException;
 import java.net.URI;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 public class MoviesHandler extends BaseHttpHandler {
     private final MoviesStore moviesStore;
@@ -69,30 +69,25 @@ public class MoviesHandler extends BaseHttpHandler {
     //возвращает фильмы по году
     private void handleGetMoviesByYear(HttpExchange httpExchange, String query) throws IOException {
         try {
-            if (query == null) {
-                sendError(httpExchange, ErrorResponse.badRequest("Отсутствует параметр запроса 'year'"));
+            String yearParam = getQueryParam(query, "year");
+
+            if (yearParam == null) {
+                sendError(httpExchange, ErrorResponse.badRequest("Отсутствует параметр запроса year"));
                 return;
             }
-
-            String yearParam = null;
-            String[] params = query.split("&");
-            for (String param : params) {
-                if (param.startsWith("year=")) {
-                    yearParam = param.substring(5);
-                    break;
-                }
-            }
-            if (yearParam == null) {
-                sendError(httpExchange, ErrorResponse.badRequest("Отсутствует параметр запроса 'year'"));
+            if (yearParam.isEmpty()) {
+                sendError(httpExchange, ErrorResponse.badRequest("Параметр year не может быть пустым"));
                 return;
             }
             int year = Integer.parseInt(yearParam);
-            List<Movie> movies = moviesStore.getAllMovies().stream()
-                    .filter(movie -> movie.getYear() == year)
-                    .collect(Collectors.toList());
+            Optional<List<Movie>> moviesOpt = moviesStore.getMoviesByYear(year);
 
-            String jsonResponse = GSON.toJson(movies);
-            sendJson(httpExchange, 200, jsonResponse);
+            if (moviesOpt.isPresent()) {
+                String jsonResponse = GSON.toJson(moviesOpt.get());
+                sendJson(httpExchange, 200, jsonResponse);
+            } else {
+                sendJson(httpExchange, 200, "[]");
+            }
         } catch (NumberFormatException e) {
             sendError(httpExchange, ErrorResponse.badRequest("Параметр year должен быть числом"));
         }
@@ -185,7 +180,8 @@ public class MoviesHandler extends BaseHttpHandler {
     private Endpoint getEndpoint(String path, String method, String query) {
         if (method.equalsIgnoreCase("GET")) {
             if (path.equals("/movies")) {
-                if (query != null && query.startsWith("year=")) {
+                Map<String, String> params = parseQueryParams(query);
+                if (params.containsKey("year")) {
                     return Endpoint.GET_MOVIES_YEAR;
                 } else {
                     return Endpoint.GET_MOVIES;

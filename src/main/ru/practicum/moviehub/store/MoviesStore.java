@@ -19,7 +19,7 @@ public class MoviesStore {
     }
 
     public Map<Integer, Movie> getMovies() {
-        return movies;
+        return new HashMap<>(movies);
     }
 
     //вернуть все фильмы
@@ -29,14 +29,8 @@ public class MoviesStore {
 
     //добавить фильм
     public Optional<Movie> addMovie(Movie movie) {
-        List<String> validationError = validateMovie(movie);
-        if (!validationError.isEmpty()) {
-            return Optional.empty();
-        }
-
         int newId = getNextId();
         movie.setId(newId);
-
         movies.put(newId, movie);
         return Optional.of(movie);
     }
@@ -50,15 +44,12 @@ public class MoviesStore {
     }
 
 
-    public Optional<List<String>> getTitlesByYear(int year) {
-        return Optional.of(
-                movies.values().stream()
-                        .filter(movie -> movie.getYear() == year)
-                        .map(Movie::getTitle)
-                        //Убираем дубликаты
-                        .distinct()
-                        .collect(Collectors.toList())
-        ).filter(list -> !list.isEmpty());
+    public Optional<List<Movie>> getMoviesByYear(int year) {
+        List<Movie> moviesByYear = movies.values().stream()
+                .filter(movie -> movie.getYear() == year)
+                .collect(Collectors.toList());
+
+        return moviesByYear.isEmpty() ? Optional.empty() : Optional.of(moviesByYear);
     }
 
     public void clear() {
